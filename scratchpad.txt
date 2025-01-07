@@ -1,0 +1,72 @@
+Commands and notes
+
+# PostgreSQL
+sudo apt-get update
+sudo apt-get install postgresql postgresql-contrib
+
+# MongoDB
+sudo apt-get install -y mongodb
+
+-- Connect to PostgreSQL
+sudo -u postgres psql
+
+-- Create a new database
+CREATE DATABASE educloud;
+
+-- Create a new user
+CREATE USER educloud_user WITH ENCRYPTED PASSWORD 'your_password';
+
+-- Grant privileges to the user
+GRANT ALL PRIVILEGES ON DATABASE educloud TO educloud_user;
+
+# Connect to MongoDB
+mongo
+
+# Create a new database
+use educloud
+
+# Create a new user
+db.createUser({
+  user: "educloud_user",
+  pwd: "your_password",
+  roles: [{ role: "readWrite", db: "educloud" }]
+})
+
+const { Pool } = require('pg');
+const mongoose = require('mongoose');
+
+// PostgreSQL connection
+const pool = new Pool({
+  user: 'educloud_user',
+  host: 'localhost',
+  database: 'educloud',
+  password: 'your_password',
+  port: 5432,
+});
+
+// MongoDB connection
+mongoose.connect('mongodb://educloud_user:your_password@localhost:27017/educloud', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+module.exports = { pool, mongoose };
+
+educloud-backend
+├── src
+│   ├── app.js
+│   ├── config
+│   ├── controllers
+│   ├── db
+│   │   ├── postgres.js
+│   │   └── mongodb.js
+│   ├── middlewares
+│   ├── models
+│   ├── routes
+│   ├── services
+│   ├── server.js
+│   └── tests
+├── .env
+├── .gitignore
+└── README.md
+
