@@ -57,13 +57,45 @@ export const authAPI = {
   login: async (credentials) => {
     try {
       const response = await api.post('/api/users/login', credentials);
-      // Verify the response contains the expected data
-      if (!response.data || !response.data.token) {
-        throw new Error('Invalid response from server');
+      
+      // Log the full response for debugging
+      console.log('Full login response:', response);
+      
+      // Check if response has data
+      if (!response.data) {
+        throw new Error('No response data received');
       }
+
+      // Check if token exists
+      if (!response.data.token) {
+        throw new Error('No authentication token received');
+      }
+
+      // Store token and user data
+      localStorage.setItem('token', response.data.token);
+      if (response.data.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+
       return response;
     } catch (error) {
-      throw error;
+      console.error('Login error details:', error.response?.data || error.message);
+      
+      // Handle specific error cases
+      if (error.response) {
+        switch (error.response.status) {
+          case 401:
+            throw new Error('Invalid email or password');
+          case 404:
+            throw new Error('User not found');
+          case 500:
+            throw new Error('Server error. Please try again later');
+          default:
+            throw new Error(error.response.data?.message || 'Login failed');
+        }
+      }
+      
+      throw new Error('Network error. Please check your connection');
     }
   },
   register: async (userData) => {
