@@ -1,44 +1,46 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, TextField, Button, Typography, Container, Paper, Alert } from '@mui/material';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Alert
+} from '@mui/material';
 import { authAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
+    password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
-    
+    setLoading(true);
+
     try {
       const response = await authAPI.login(formData);
-      console.log('Login response:', response); // Debug log
-      
-      if (response.data && response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        // Navigate to dashboard
-        navigate('/dashboard', { replace: true });
-      } else {
-        setError('Invalid response from server');
-      }
+      login(response.data.user, response.data.token);
+      navigate('/dashboard');
     } catch (err) {
-      console.error('Login error:', err); // Debug log
-      setError(err.message || 'Login failed. Please try again.');
+      setError(err.response?.data?.message || 'Failed to login');
     } finally {
       setLoading(false);
     }
@@ -47,18 +49,18 @@ const Login = () => {
   return (
     <Container maxWidth="sm">
       <Box sx={{ mt: 8 }}>
-        <Paper sx={{ p: 4 }}>
-          <Typography variant="h4" align="center" gutterBottom>
-            Login to EduCloud
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom align="center">
+            Login
           </Typography>
-          
+
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
-          
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+
+          <Box component="form" onSubmit={handleSubmit}>
             <TextField
               fullWidth
               label="Email"
@@ -67,8 +69,9 @@ const Login = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              sx={{ mb: 2 }}
+              margin="normal"
             />
+
             <TextField
               fullWidth
               label="Password"
@@ -77,17 +80,26 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              sx={{ mb: 3 }}
+              margin="normal"
             />
+
             <Button
-              fullWidth
               type="submit"
+              fullWidth
               variant="contained"
               color="primary"
               disabled={loading}
+              sx={{ mt: 3, mb: 2 }}
             >
               {loading ? 'Logging in...' : 'Login'}
             </Button>
+
+            <Typography align="center">
+              Don't have an account?{' '}
+              <Link to="/signup" style={{ textDecoration: 'none' }}>
+                Sign up
+              </Link>
+            </Typography>
           </Box>
         </Paper>
       </Box>

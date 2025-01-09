@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Container,
   Grid,
@@ -17,14 +18,22 @@ import {
   DialogContent,
   DialogActions
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import { coursesAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+
+// Default course image
+const DEFAULT_COURSE_IMAGE = 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=800&q=80';
 
 const Courses = () => {
+  const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [enrollingCourse, setEnrollingCourse] = useState(null);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
+
+  const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
 
   useEffect(() => {
     fetchCourses();
@@ -70,13 +79,26 @@ const Courses = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Available Courses
-        </Typography>
-        <Typography color="textSecondary">
-          Explore our wide range of courses and start learning today
-        </Typography>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <Typography variant="h4" gutterBottom>
+            Available Courses
+          </Typography>
+          <Typography color="textSecondary">
+            Explore our wide range of courses and start learning today
+          </Typography>
+        </div>
+        {isInstructor && (
+          <Button
+            variant="contained"
+            color="primary"
+            component={Link}
+            to="/courses/create"
+            startIcon={<AddIcon />}
+          >
+            Create Course
+          </Button>
+        )}
       </Box>
 
       {error && (
@@ -91,9 +113,13 @@ const Courses = () => {
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardMedia
                 component="img"
-                height="140"
-                image={course.imageUrl || 'https://source.unsplash.com/random?education'}
+                height="200"
+                image={course.thumbnail || DEFAULT_COURSE_IMAGE}
                 alt={course.title}
+                sx={{
+                  objectFit: 'cover',
+                  backgroundColor: 'grey.100'
+                }}
               />
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography gutterBottom variant="h6" component="h2">

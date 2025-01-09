@@ -25,17 +25,29 @@ exports.getCourseById = handleAsync(async (req, res) => {
 
 // Create new course
 exports.createCourse = handleAsync(async (req, res) => {
-    const courseData = {
-        ...req.body,
-        instructor: req.user._id,
-        thumbnail: req.file ? req.file.path : undefined
-    };
-
-    // Create course
+    console.log('Creating course with data:', req.body);
+    console.log('File uploaded:', req.file);
+    
+    const courseData = { ...req.body };
+    
+    // Add thumbnail path if file was uploaded
+    if (req.file) {
+        courseData.thumbnail = `/uploads/courses/${req.file.filename}`;
+        console.log('Thumbnail path:', courseData.thumbnail);
+    }
+    
+    // Add instructor
+    courseData.instructor = req.user._id;
+    
+    console.log('Final course data:', courseData);
+    
     const course = await Course.create(courseData);
-    await course.populate('instructor', 'name email');
-
-    res.status(201).json({ course });
+    console.log('Course created:', course);
+    
+    res.status(201).json({
+        status: 'success',
+        data: course
+    });
 });
 
 // Update course
@@ -54,12 +66,35 @@ exports.updateCourse = handleAsync(async (req, res) => {
     // Update fields
     Object.assign(course, req.body);
     if (req.file) {
-        course.thumbnail = req.file.path;
+        course.thumbnail = `/uploads/courses/${req.file.filename}`;
     }
 
     const updatedCourse = await course.save();
-    await updatedCourse.populate('instructor', 'name email');
-    res.json({ course: updatedCourse });
+    res.json({
+        status: 'success',
+        data: updatedCourse
+    });
+});
+
+// Update course thumbnail
+exports.updateCourseThumbnail = handleAsync(async (req, res) => {
+    if (!req.file) {
+        throw new APIError('No file uploaded', 400);
+    }
+
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+        throw new APIError('Course not found', 404);
+    }
+
+    // Update thumbnail path
+    course.thumbnail = `/uploads/courses/${req.file.filename}`;
+    await course.save();
+
+    res.json({
+        status: 'success',
+        data: course
+    });
 });
 
 // Delete course

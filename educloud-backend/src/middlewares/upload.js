@@ -38,8 +38,8 @@ const fileFilter = (req, file, cb) => {
         'application/vnd.ms-powerpoint',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     ];
-    const allowedVideoTypes = ['video/mp4', 'video/mpeg', 'video/quicktime'];
-
+    const allowedVideoTypes = ['video/mp4', 'video/mpeg', 'video/quicktime']
+    
     if (file.fieldname === 'profileImage' || file.fieldname === 'courseThumbnail') {
         if (allowedImageTypes.includes(file.mimetype)) {
             cb(null, true);
@@ -88,9 +88,39 @@ const handleUploadError = (error, req, res, next) => {
     next();
 };
 
+// Create upload middleware for course thumbnails
+const courseThumbnailStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../../uploads/courses'));
+  },
+  filename: function (req, file, cb) {
+    // Create unique filename with timestamp and original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'course-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter for course thumbnails
+const courseThumbnailFileFilter = (req, file, cb) => {
+  // Accept images only
+  if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+    return cb(new Error('Only image files are allowed!'), false);
+  }
+  cb(null, true);
+};
+
+// Create upload middleware for course thumbnails
+const courseThumbnailUpload = multer({
+  storage: courseThumbnailStorage,
+  fileFilter: courseThumbnailFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB max file size
+  }
+});
+
 // Export middleware functions
 exports.uploadProfileImage = upload.single('profileImage');
-exports.uploadCourseThumbnail = upload.single('courseThumbnail');
+exports.uploadCourseThumbnail = courseThumbnailUpload.single('thumbnail');
 exports.uploadLessonMaterial = upload.array('lessonMaterial', 5);
 exports.uploadAssignment = upload.single('assignment');
 exports.handleUploadError = handleUploadError;

@@ -100,7 +100,7 @@ export const authAPI = {
   },
   register: async (userData) => {
     try {
-      const response = await api.post('/api/users/signup', userData);
+      const response = await api.post('/api/auth/signup', userData);
       return response;
     } catch (error) {
       throw error;
@@ -119,15 +119,44 @@ export const coursesAPI = {
   getCourseById(id) {
     return api.get(`/api/courses/${id}`);
   },
+  createCourse(courseData) {
+    const formData = new FormData();
+    
+    // Append course data
+    Object.keys(courseData).forEach(key => {
+      if (key !== 'thumbnail') {
+        formData.append(key, courseData[key]);
+      }
+    });
+    
+    // Append thumbnail if exists
+    if (courseData.thumbnail) {
+      formData.append('thumbnail', courseData.thumbnail);
+    }
+    
+    return api.post('/api/courses', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+  updateCourseThumbnail(courseId, formData) {
+    return api.put(`/api/courses/${courseId}/thumbnail`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
   enrollCourse(courseId) {
-    return api.post(`/api/courses/${courseId}/enroll`);
+    return api.post(`/api/users/enroll/${courseId}`);
   },
   getEnrolledCourses() {
-    return api.get('/api/courses/enrolled');
-  }
-  // getAllCourses: () => api.get('/api/courses'),
-  // getCourseById: (id) => api.get(`/api/courses/${id}`),
-  // enrollCourse: (courseId) => api.post(`/api/enrollments`, { courseId }),
+    return api.get('/api/users/courses');
+  },
+  getDashboardStats: async () => {
+    const response = await api.get('/api/dashboard/stats');
+    return response;
+  },
 };
 
 export default api;

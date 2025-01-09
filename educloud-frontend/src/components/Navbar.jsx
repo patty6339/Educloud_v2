@@ -1,15 +1,45 @@
-import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
-import { useNavigate, Link } from 'react-router-dom';
+import React from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
+  IconButton,
+  Menu,
+  MenuItem,
+  Avatar
+} from '@mui/material';
+import AccountCircle from '@mui/icons-material/AccountCircle';
+import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
-const Navbar = ({ isAuthenticated, onLogout }) => {
+const Navbar = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const handleMenu = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    handleClose();
+    logout();
+    navigate('/');
+  };
 
   return (
     <AppBar position="static">
       <Toolbar>
         <Typography 
           variant="h6" 
-          component={Link} 
+          component={RouterLink} 
           to="/" 
           sx={{ 
             flexGrow: 1, 
@@ -22,44 +52,70 @@ const Navbar = ({ isAuthenticated, onLogout }) => {
         >
           EduCloud
         </Typography>
-        <Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {isAuthenticated ? (
             <>
               <Button 
                 color="inherit" 
-                onClick={() => navigate('/dashboard')}
-                sx={{ mx: 1 }}
-              >
-                Dashboard
-              </Button>
-              <Button 
-                color="inherit" 
-                onClick={() => navigate('/courses')}
+                component={RouterLink} 
+                to="/courses"
                 sx={{ mx: 1 }}
               >
                 Courses
               </Button>
               <Button 
                 color="inherit" 
-                onClick={onLogout}
+                component={RouterLink} 
+                to="/dashboard"
                 sx={{ mx: 1 }}
               >
-                Logout
+                Dashboard
               </Button>
+              <IconButton
+                size="large"
+                onClick={handleMenu}
+                color="inherit"
+              >
+                {user?.profileImage ? (
+                  <Avatar src={user.profileImage} sx={{ width: 32, height: 32 }} />
+                ) : (
+                  <AccountCircle />
+                )}
+              </IconButton>
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+                anchorOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'right',
+                }}
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+              >
+                <MenuItem component={RouterLink} to="/profile" onClick={handleClose}>
+                  Profile
+                </MenuItem>
+                <MenuItem onClick={handleLogout}>Logout</MenuItem>
+              </Menu>
             </>
           ) : (
             <>
               <Button 
                 color="inherit" 
-                onClick={() => navigate('/login')}
+                component={RouterLink} 
+                to="/login"
                 sx={{ mx: 1 }}
               >
                 Login
               </Button>
               <Button 
                 color="inherit" 
-                variant="outlined"
-                onClick={() => navigate('/register')}
+                component={RouterLink} 
+                to="/register"
                 sx={{ 
                   mx: 1,
                   borderColor: 'white',
