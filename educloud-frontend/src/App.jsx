@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
 import CreateCourse from './pages/CreateCourse';
+import CourseView from './pages/CourseView';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
 
@@ -42,6 +43,11 @@ function App() {
             <Route path="/courses/create" element={
               <ProtectedRoute>
                 <CreateCourse />
+              </ProtectedRoute>
+            } />
+            <Route path="/courses/:id" element={
+              <ProtectedRoute>
+                <CourseView />
               </ProtectedRoute>
             } />
             {/* Catch all route */}

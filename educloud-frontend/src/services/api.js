@@ -1,6 +1,11 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3002';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+export const getImageUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${API_URL}${path}`;
+};
 
 const api = axios.create({
   baseURL: API_URL,
@@ -120,24 +125,56 @@ export const coursesAPI = {
     return api.get(`/api/courses/${id}`);
   },
   createCourse(courseData) {
+    console.log('API createCourse called with:', courseData);
+    
+    // If courseData is already FormData, use it directly
+    if (courseData instanceof FormData) {
+      console.log('FormData entries:');
+      for (let [key, value] of courseData.entries()) {
+        console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
+      }
+
+      return api.post('/api/courses', courseData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }).catch(error => {
+        console.error('API Error Response:', error.response?.data);
+        console.error('API Error Status:', error.response?.status);
+        console.error('API Error Headers:', error.response?.headers);
+        throw error;
+      });
+    }
+
+    // Otherwise, create new FormData
     const formData = new FormData();
     
-    // Append course data
     Object.keys(courseData).forEach(key => {
-      if (key !== 'thumbnail') {
+      if (key === 'thumbnail') {
+        if (courseData[key]) {
+          formData.append('thumbnail', courseData[key]);
+        }
+      } else if (Array.isArray(courseData[key])) {
+        formData.append(key, JSON.stringify(courseData[key]));
+      } else if (courseData[key] !== null && courseData[key] !== undefined) {
         formData.append(key, courseData[key]);
       }
     });
     
-    // Append thumbnail if exists
-    if (courseData.thumbnail) {
-      formData.append('thumbnail', courseData.thumbnail);
+    console.log('Created FormData entries:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
     }
-    
+
     return api.post('/api/courses', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
+    }).catch(error => {
+      console.error('API Error Response:', error.response?.data);
+      console.error('API Error Status:', error.response?.status);
+      console.error('API Error Headers:', error.response?.headers);
+      throw error;
     });
   },
   updateCourseThumbnail(courseId, formData) {
@@ -147,8 +184,8 @@ export const coursesAPI = {
       }
     });
   },
-  enrollCourse(courseId) {
-    return api.post(`/api/users/enroll/${courseId}`);
+  enrollCourse: (courseId) => {
+    return api.post('/api/enrollments', { courseId });
   },
   getEnrolledCourses() {
     return api.get('/api/users/courses');

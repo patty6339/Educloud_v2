@@ -19,11 +19,11 @@ import {
   DialogActions
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { coursesAPI } from '../services/api';
+import { coursesAPI, getImageUrl } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 // Default course image
-const DEFAULT_COURSE_IMAGE = 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=800&q=80';
+const DEFAULT_COURSE_IMAGE = '/uploads/courses/default-course.svg';
 
 const Courses = () => {
   const { user } = useAuth();
@@ -57,11 +57,13 @@ const Courses = () => {
   const handleEnrollment = async (course) => {
     try {
       setEnrollmentLoading(true);
-      await coursesAPI.enrollCourse(course._id);
-      await fetchCourses();
+      setError('');
+      await coursesAPI.enrollCourse(course.id || course._id);
+      await fetchCourses(); // Refresh the course list
       setEnrollingCourse(null);
     } catch (err) {
-      setError('Failed to enroll in course');
+      console.error('Enrollment error:', err);
+      setError(err.message || 'Failed to enroll in course');
     } finally {
       setEnrollmentLoading(false);
     }
@@ -114,8 +116,12 @@ const Courses = () => {
               <CardMedia
                 component="img"
                 height="200"
-                image={course.thumbnail || DEFAULT_COURSE_IMAGE}
+                image={getImageUrl(course.thumbnail) || getImageUrl(DEFAULT_COURSE_IMAGE)}
                 alt={course.title}
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = getImageUrl(DEFAULT_COURSE_IMAGE);
+                }}
                 sx={{
                   objectFit: 'cover',
                   backgroundColor: 'grey.100'

@@ -8,6 +8,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
 const path = require('path');
+const fs = require('fs'); // Added fs module
 
 const connectDB = require('./config/database');
 const logger = require('./utils/logger');
@@ -27,7 +28,15 @@ const app = express();
 connectDB();
 
 // Security Middleware
-app.use(helmet()); // Set security HTTP headers
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow images to be served cross-origin
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "img-src": ["'self'", "data:", "blob:", "*"], // Allow images from any source
+        },
+    },
+}));
 app.use(cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true,
@@ -37,6 +46,21 @@ app.use(cors({
 app.use(xss()); // Sanitize data
 app.use(mongoSanitize()); // Prevent NoSQL injection
 app.use(hpp()); // Prevent HTTP Parameter Pollution
+
+// Serve static files
+const uploadsDir = path.join(__dirname, '../uploads');
+const coursesUploadsDir = path.join(uploadsDir, 'courses');
+
+// Create uploads directories if they don't exist
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir);
+}
+if (!fs.existsSync(coursesUploadsDir)) {
+    fs.mkdirSync(coursesUploadsDir);
+}
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Request parsing
 app.use(express.json({ limit: '10kb' }));
@@ -53,9 +77,6 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.'
 });
 app.use('/api', limiter);
-
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

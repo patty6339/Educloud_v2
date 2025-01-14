@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "axios": "^1.7.9",
+    "aws-sdk": "^2.1450.0",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.5",

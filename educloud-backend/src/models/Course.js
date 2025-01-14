@@ -3,59 +3,70 @@ const mongoose = require('mongoose');
 const courseSchema = new mongoose.Schema({
     title: {
         type: String,
-        required: true,
+        required: [true, 'Course title is required'],
         trim: true
     },
     description: {
         type: String,
-        required: true,
-        trim: true
+        required: [true, 'Course description is required']
     },
     instructor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: [true, 'Course instructor is required']
     },
     category: {
         type: String,
-        required: true,
-        trim: true
+        required: [true, 'Course category is required'],
+        enum: [
+            'Programming',
+            'Web Development',
+            'Data Science',
+            'Machine Learning',
+            'Mobile Development',
+            'DevOps',
+            'Database',
+            'Cloud Computing',
+            'Cybersecurity',
+            'Other'
+        ]
     },
     level: {
         type: String,
-        enum: ['beginner', 'intermediate', 'advanced'],
-        required: true
+        required: [true, 'Course level is required'],
+        enum: ['beginner', 'intermediate', 'advanced']
     },
     price: {
         type: Number,
-        required: true,
+        required: [true, 'Course price is required'],
+        min: 0
+    },
+    duration: {
+        type: Number,
+        required: [true, 'Course duration is required'],
         min: 0
     },
     thumbnail: {
-        type: String
+        type: String,
+        default: '/uploads/courses/default-course.svg'
     },
-    lessons: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Lesson'
-    }],
-    assignments: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Assignment'
-    }],
-    quizzes: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Quiz'
-    }],
-    duration: {
-        type: Number, // in minutes
-        required: true
-    },
-    requirements: [{
-        type: String
+    prerequisites: [{
+        type: String,
+        trim: true
     }],
     objectives: [{
-        type: String
+        type: String,
+        trim: true
     }],
+    status: {
+        type: String,
+        enum: ['draft', 'published', 'archived'],
+        default: 'draft'
+    },
+    enrollmentCount: {
+        type: Number,
+        default: 0
+    },
     rating: {
         average: {
             type: Number,
@@ -66,24 +77,24 @@ const courseSchema = new mongoose.Schema({
             default: 0
         }
     },
-    status: {
-        type: String,
-        enum: ['draft', 'published', 'archived'],
-        default: 'draft'
-    },
-    enrollmentCount: {
-        type: Number,
-        default: 0
-    }
+    lessons: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Lesson'
+    }]
 }, {
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
 
-// Index for search functionality
-courseSchema.index({ 
-    title: 'text', 
-    description: 'text', 
-    category: 'text' 
+// Virtual field for total duration
+courseSchema.virtual('totalDuration').get(function() {
+    return this.lessons.reduce((total, lesson) => total + (lesson.duration || 0), 0);
 });
 
-module.exports = mongoose.model('Course', courseSchema);
+// Index for searching
+courseSchema.index({ title: 'text', description: 'text', category: 'text' });
+
+const Course = mongoose.model('Course', courseSchema);
+
+module.exports = Course;

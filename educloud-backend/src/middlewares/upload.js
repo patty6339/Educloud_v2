@@ -1,31 +1,9 @@
 const multer = require('multer');
 const path = require('path');
-const crypto = require('crypto');
+const { uploadToS3 } = require('../config/aws');
 
-// Configure storage
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        let uploadPath = 'uploads/';
-        
-        // Determine upload directory based on file type
-        if (file.fieldname === 'profileImage') {
-            uploadPath += 'profiles/';
-        } else if (file.fieldname === 'courseThumbnail') {
-            uploadPath += 'courses/';
-        } else if (file.fieldname === 'lessonMaterial') {
-            uploadPath += 'lessons/';
-        } else if (file.fieldname === 'assignment') {
-            uploadPath += 'assignments/';
-        }
-        
-        cb(null, uploadPath);
-    },
-    filename: (req, file, cb) => {
-        // Generate unique filename
-        const uniqueSuffix = crypto.randomBytes(16).toString('hex');
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
 
 // File filter
 const fileFilter = (req, file, cb) => {
@@ -38,7 +16,7 @@ const fileFilter = (req, file, cb) => {
         'application/vnd.ms-powerpoint',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation'
     ];
-    const allowedVideoTypes = ['video/mp4', 'video/mpeg', 'video/quicktime']
+    const allowedVideoTypes = ['video/mp4', 'video/mpeg', 'video/quicktime'];
     
     if (file.fieldname === 'profileImage' || file.fieldname === 'courseThumbnail') {
         if (allowedImageTypes.includes(file.mimetype)) {
@@ -53,7 +31,7 @@ const fileFilter = (req, file, cb) => {
             cb(new Error('Invalid file type!'), false);
         }
     } else {
-        cb(new Error('Unknown file type!'), false);
+        cb(new Error('Unknown field name!'), false);
     }
 };
 
@@ -66,61 +44,33 @@ const upload = multer({
     }
 });
 
-// Error handler for multer
-const handleUploadError = (error, req, res, next) => {
-    if (error instanceof multer.MulterError) {
-        if (error.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({
-                message: 'File is too large'
-            });
+// Middleware to handle file upload and S3 storage
+const handleFileUpload = (fieldName) => async (req, res, next) => {
+    upload.single(fieldName)(req, res, async (err) => {
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: `Upload error: ${err.message}` });
+        } else if (err) {
+            return res.status(400).json({ message: err.message });
         }
-        return res.status(400).json({
-            message: error.message
-        });
-    }
-    
-    if (error) {
-        return res.status(400).json({
-            message: error.message
-        });
-    }
-    
-    next();
+
+        try {
+            if (req.file) {
+                // Upload to S3 and get URL
+                const s3Url = await uploadToS3(req.file, fieldName);
+                req.fileUrl = s3Url;
+            }
+            next();
+        } catch (error) {
+            console.error('File processing error:', error);
+            res.status(500).json({ message: 'Error processing file upload' });
+        }
+    });
 };
-
-// Create upload middleware for course thumbnails
-const courseThumbnailStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../../uploads/courses'));
-  },
-  filename: function (req, file, cb) {
-    // Create unique filename with timestamp and original extension
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'course-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-// File filter for course thumbnails
-const courseThumbnailFileFilter = (req, file, cb) => {
-  // Accept images only
-  if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-    return cb(new Error('Only image files are allowed!'), false);
-  }
-  cb(null, true);
-};
-
-// Create upload middleware for course thumbnails
-const courseThumbnailUpload = multer({
-  storage: courseThumbnailStorage,
-  fileFilter: courseThumbnailFileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB max file size
-  }
-});
 
 // Export middleware functions
-exports.uploadProfileImage = upload.single('profileImage');
-exports.uploadCourseThumbnail = courseThumbnailUpload.single('thumbnail');
-exports.uploadLessonMaterial = upload.array('lessonMaterial', 5);
-exports.uploadAssignment = upload.single('assignment');
-exports.handleUploadError = handleUploadError;
+module.exports = {
+    uploadProfileImage: handleFileUpload('profileImage'),
+    uploadCourseThumbnail: handleFileUpload('courseThumbnail'),
+    uploadLessonMaterial: handleFileUpload('lessonMaterial'),
+    uploadAssignment: handleFileUpload('assignment')
+};
