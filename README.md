@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> ea44e25c3b005fcf81f0e46b9b7419851fe88805
 # EduCloud Learning Platform
 
 ## Overview
@@ -140,12 +136,6 @@ API documentation is available at `/api-docs` when running the server.
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Support
-<<<<<<< HEAD
-For support, email support@educloud.com or create an issue in the repository.
-=======
-For support, email support@educloud.com or create an issue in the repository.
-=======
 # Educloud_v2
 
 ---
@@ -272,6 +262,4 @@ This project is licensed under the **MIT License**. Refer to the `LICENSE` file 
 ## **Summary**  
 This documentation provides a complete guide to installing, using, and contributing to Educloud V2. If you need further assistance or additional sections, feel free to reach out or suggest improvements.
 
---- 
->>>>>>> 8a7212de35899ea5beb0220b62710b9ca0fcbfcc
->>>>>>> ea44e25c3b005fcf81f0e46b9b7419851fe88805
+
