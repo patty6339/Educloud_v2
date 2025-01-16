@@ -1,5 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Lesson = require('../models/Lesson');
@@ -40,49 +41,40 @@ const seedDB = async () => {
         // Clean the database first
         await cleanDB();
 
-        // Seed users
-        const createdUsers = await User.create(users);
+        // Hash passwords for users
+        const hashedUsers = await Promise.all(
+            users.map(async user => ({
+                ...user,
+                password: await bcrypt.hash(user.password, 10)
+            }))
+        );
+
+        // Create users first
+        const createdUsers = await User.insertMany(hashedUsers);
         console.log('Users seeded successfully');
 
-        // Get instructor ID
-        const instructor = createdUsers.find(user => user.role === 'instructor');
-
-        // Add instructor ID to courses
+        // Add user references to courses
+        const instructorUser = createdUsers.find(user => user.role === 'instructor');
         const coursesWithInstructor = courses.map(course => ({
             ...course,
-            instructor: instructor._id
+            instructor: instructorUser._id
         }));
 
-        // Seed courses
-        const createdCourses = await Course.create(coursesWithInstructor);
+        // Create courses
+        const createdCourses = await Course.insertMany(coursesWithInstructor);
         console.log('Courses seeded successfully');
 
-        // Add course IDs to lessons and seed them
-        const lessonsWithCourses = [];
-        createdCourses.forEach((course, index) => {
-            // Add two lessons per course
-            const courseStartIndex = index * 2;
-            const courseLessons = lessons.slice(courseStartIndex, courseStartIndex + 2).map(lesson => ({
-                ...lesson,
-                courseId: course._id
-            }));
-            lessonsWithCourses.push(...courseLessons);
-        });
+        // Add course references to lessons
+        const lessonsWithCourses = lessons.map((lesson, index) => ({
+            ...lesson,
+            courseId: createdCourses[Math.floor(index / 3)]._id // Distribute lessons among courses
+        }));
 
-        const createdLessons = await Lesson.create(lessonsWithCourses);
+        // Create lessons
+        await Lesson.insertMany(lessonsWithCourses);
         console.log('Lessons seeded successfully');
 
-        // Update courses with lesson IDs
-        for (const course of createdCourses) {
-            const courseLessons = createdLessons.filter(lesson => 
-                lesson.courseId.toString() === course._id.toString()
-            );
-            course.lessons = courseLessons.map(lesson => lesson._id);
-            await course.save();
-        }
-        console.log('Courses updated with lesson IDs');
-
-        console.log('Database seeded successfully!');
+        console.log('All data seeded successfully!');
         process.exit(0);
     } catch (error) {
         console.error('Error seeding database:', error);
