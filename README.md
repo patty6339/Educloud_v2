@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> ea44e25c3b005fcf81f0e46b9b7419851fe88805
 # EduCloud Learning Platform
 
 ## Overview
