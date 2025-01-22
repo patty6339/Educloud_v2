@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { Box } from '@mui/material';
 import Navbar from './components/Navbar';
 import theme from './theme';
 import Home from './pages/Home';
@@ -25,34 +26,36 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <Router>
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/courses" element={
-              <ProtectedRoute>
-                <Courses />
-              </ProtectedRoute>
-            } />
-            <Route path="/courses/create" element={
-              <ProtectedRoute>
-                <CreateCourse />
-              </ProtectedRoute>
-            } />
-            <Route path="/courses/:id" element={
-              <ProtectedRoute>
-                <CourseView />
-              </ProtectedRoute>
-            } />
-            {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+          <Box sx={{ width: '100%', minHeight: '100vh' }}>
+            <Navbar />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/courses" element={
+                <ProtectedRoute>
+                  <Courses />
+                </ProtectedRoute>
+              } />
+              <Route path="/courses/create" element={
+                <ProtectedRoute>
+                  <CreateCourse />
+                </ProtectedRoute>
+              } />
+              <Route path="/courses/:id" element={
+                <ProtectedRoute>
+                  <CourseView />
+                </ProtectedRoute>
+              } />
+              {/* Catch all route */}
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </Box>
         </Router>
       </AuthProvider>
     </ThemeProvider>

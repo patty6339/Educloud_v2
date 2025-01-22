@@ -204,6 +204,19 @@ const CourseView = () => {
 
                 <TabPanel value={activeTab} index={1}>
                   <Typography variant="h6" gutterBottom>
+                    Learning Objectives
+                  </Typography>
+                  <List>
+                    {course.learningObjectives && course.learningObjectives.map((objective, index) => (
+                      <ListItem key={index}>
+                        <ListItemIcon>
+                          <RadioButtonUnchecked fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary={objective} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  <Typography variant="h6" gutterBottom>
                     Course Overview
                   </Typography>
                   <Typography paragraph>

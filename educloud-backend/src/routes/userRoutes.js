@@ -12,10 +12,7 @@ router.post('/reset-password/:token', userController.resetPassword);
 // Protected routes - require authentication only
 router.use(protect);
 
-// Course enrollment routes (available to all authenticated users)
-router.post('/enroll/:courseId', userController.enrollInCourse);
-router.get('/courses', userController.getEnrolledCourses);
-router.get('/progress/:courseId', userController.getCourseProgress);
+// Keeping this comment as a placeholder
 
 // Profile routes (available to all authenticated users)
 router.get('/profile', userController.getProfile);

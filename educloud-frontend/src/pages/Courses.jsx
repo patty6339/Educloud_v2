@@ -42,13 +42,34 @@ const Courses = () => {
   const fetchCourses = async () => {
     try {
       setLoading(true);
+      setError('');
       const response = await coursesAPI.getAllCourses();
-      const coursesArray = Array.isArray(response.data) ? response.data : 
-                         Array.isArray(response.data.courses) ? response.data.courses : [];
+      
+      console.log('Full courses response:', response);
+      
+      // Robust course data extraction
+      const coursesArray = response.data?.courses || 
+                           (Array.isArray(response.data) ? response.data : 
+                           (Array.isArray(response) ? response : []));
+      
+      console.log('Extracted courses:', coursesArray);
+      
+      if (coursesArray.length === 0) {
+        setError('No courses available');
+      }
+      
       setCourses(coursesArray);
     } catch (err) {
-      setError('Failed to load courses');
-      console.error(err);
+      console.error('Detailed courses fetch error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+      
+      setError(
+        err.response?.data?.message || 
+        'Failed to load courses. Please check your network connection.'
+      );
     } finally {
       setLoading(false);
     }
@@ -58,12 +79,27 @@ const Courses = () => {
     try {
       setEnrollmentLoading(true);
       setError('');
-      await coursesAPI.enrollCourse(course.id || course._id);
-      await fetchCourses(); // Refresh the course list
+      
+      // Enroll in the course
+      const enrollmentResponse = await coursesAPI.enrollCourse(course.id || course._id);
+      
+      // Fetch updated courses to ensure enrollment status is reflected
+      await fetchCourses(); 
+      
+      // Trigger dashboard stats update through context or local storage
+      const dashboardStats = await coursesAPI.getDashboardStats();
+      
+      // Update local storage to trigger dashboard refresh
+      localStorage.setItem('dashboardStats', JSON.stringify(dashboardStats.data));
+      
+      // Close enrollment dialog
       setEnrollingCourse(null);
+      
+      // Show success message
+      setError('Successfully enrolled in the course!');
     } catch (err) {
       console.error('Enrollment error:', err);
-      setError(err.message || 'Failed to enroll in course');
+      setError(err.response?.data?.message || err.message || 'Failed to enroll in course');
     } finally {
       setEnrollmentLoading(false);
     }

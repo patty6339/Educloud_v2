@@ -4,9 +4,11 @@ import {
   Button,
   CircularProgress,
   Typography,
-  Alert
+  Alert,
+  Stack
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { coursesAPI } from '../services/api';
 
 const CourseImageUpload = ({ courseId, onSuccess, currentThumbnail }) => {
@@ -19,8 +21,9 @@ const CourseImageUpload = ({ courseId, onSuccess, currentThumbnail }) => {
     if (!file) return;
 
     // Validate file type
-    if (!file.type.match(/image\/(jpg|jpeg|png|gif)/)) {
-      setError('Please select a valid image file (JPG, PNG, or GIF)');
+    const allowedTypes = ['image/jpg', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Please select a valid image file (JPG, JPEG, SVG, or WebP)');
       return;
     }
 
@@ -55,6 +58,23 @@ const CourseImageUpload = ({ courseId, onSuccess, currentThumbnail }) => {
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      setLoading(true);
+      await coursesAPI.deleteThumbnail(courseId);
+      setPreview(null);
+      
+      // Notify parent component
+      if (onSuccess) {
+        onSuccess({ thumbnail: null });
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete thumbnail');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box>
       {error && (
@@ -64,7 +84,7 @@ const CourseImageUpload = ({ courseId, onSuccess, currentThumbnail }) => {
       )}
       
       {preview && (
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 2, position: 'relative' }}>
           <img 
             src={preview} 
             alt="Course thumbnail" 
@@ -78,24 +98,38 @@ const CourseImageUpload = ({ courseId, onSuccess, currentThumbnail }) => {
         </Box>
       )}
 
-      <Button
-        component="label"
-        variant="contained"
-        startIcon={loading ? <CircularProgress size={20} /> : <CloudUploadIcon />}
-        disabled={loading}
-        sx={{ mt: 2 }}
-      >
-        {loading ? 'Uploading...' : 'Upload Thumbnail'}
-        <input
-          type="file"
-          hidden
-          accept="image/*"
-          onChange={handleFileSelect}
-        />
-      </Button>
+      <Stack direction="row" spacing={2}>
+        <Button
+          component="label"
+          variant="contained"
+          startIcon={loading ? <CircularProgress size={20} /> : <CloudUploadIcon />}
+          disabled={loading}
+          sx={{ flexGrow: 1 }}
+        >
+          {loading ? 'Uploading...' : 'Upload Thumbnail'}
+          <input
+            type="file"
+            hidden
+            accept=".jpg,.jpeg,.svg,.webp,image/jpg,image/jpeg,image/svg+xml,image/webp"
+            onChange={handleFileSelect}
+          />
+        </Button>
+        
+        {preview && (
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={handleDelete}
+            disabled={loading}
+          >
+            Delete
+          </Button>
+        )}
+      </Stack>
       
       <Typography variant="caption" display="block" sx={{ mt: 1, color: 'text.secondary' }}>
-        Supported formats: JPG, PNG, GIF (max 5MB)
+        Supported formats: JPG, JPEG, SVG, WebP (max 5MB)
       </Typography>
     </Box>
   );

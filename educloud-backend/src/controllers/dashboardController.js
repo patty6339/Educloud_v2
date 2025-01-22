@@ -19,12 +19,66 @@ exports.getStats = async (req, res) => {
             const courses = await Course.find({ instructor: userId });
             const courseIds = courses.map(course => course._id);
 
-            // Get all enrollments for instructor's courses
-            const enrollments = await Enrollment.aggregate([
+            // Aggregate stats
+            const totalStudents = await Enrollment.distinct('userId', { 
+                courseId: { $in: courseIds },
+                status: { $in: ['active', 'completed'] }
+            }).countDocuments();
+
+            const totalCourses = courses.length;
+            const totalEnrollments = await Enrollment.countDocuments({
+                courseId: { $in: courseIds },
+                status: { $in: ['active', 'completed'] }
+            });
+
+            // Course Performance
+            const coursePerformance = await Course.aggregate([
+                { $match: { instructor: userId } },
+                {
+                    $lookup: {
+                        from: 'enrollments',
+                        localField: '_id',
+                        foreignField: 'courseId',
+                        as: 'enrollments'
+                    }
+                },
+                {
+                    $addFields: {
+                        completedEnrollments: {
+                            $filter: {
+                                input: '$enrollments',
+                                as: 'enrollment',
+                                cond: { $eq: ['$$enrollment.status', 'completed'] }
+                            }
+                        }
+                    }
+                },
+                {
+                    $project: {
+                        title: 1,
+                        totalEnrollments: { $size: '$enrollments' },
+                        completedEnrollments: { $size: '$completedEnrollments' },
+                        completionRate: {
+                            $cond: [
+                                { $gt: [{ $size: '$enrollments' }, 0] },
+                                { 
+                                    $multiply: [
+                                        { $divide: [{ $size: '$completedEnrollments' }, { $size: '$enrollments' }] }, 
+                                        100 
+                                    ] 
+                                },
+                                0
+                            ]
+                        }
+                    }
+                }
+            ]);
+
+            // Recent Activities
+            const recentActivities = await Enrollment.aggregate([
                 {
                     $match: {
-                        courseId: { $in: courseIds },
-                        status: { $in: ['active', 'completed'] }
+                        courseId: { $in: courseIds }
                     }
                 },
                 {
@@ -48,64 +102,30 @@ exports.getStats = async (req, res) => {
                 },
                 {
                     $unwind: '$course'
+                },
+                {
+                    $sort: { createdAt: -1 }
+                },
+                {
+                    $limit: 10
+                },
+                {
+                    $project: {
+                        studentName: '$student.name',
+                        courseName: '$course.title',
+                        status: 1,
+                        createdAt: 1
+                    }
                 }
             ]);
 
-            // Calculate metrics
-            const totalStudents = new Set(enrollments.map(e => e.userId)).size;
-            const activeStudents = new Set(enrollments.filter(e => e.status === 'active').map(e => e.userId)).size;
-            const totalEnrollments = enrollments.length;
-            const completedEnrollments = enrollments.filter(e => e.status === 'completed').length;
-
-            // Calculate average progress
-            const averageProgress = enrollments.length > 0
-                ? enrollments.reduce((sum, e) => sum + (e.progress?.percentageCompleted || 0), 0) / enrollments.length
-                : 0;
-
-            // Get course-specific metrics
-            const courseMetrics = courses.map(course => {
-                const courseEnrollments = enrollments.filter(e => e.courseId.toString() === course._id.toString());
-                return {
-                    id: course._id,
-                    title: course.title,
-                    totalStudents: courseEnrollments.length,
-                    activeStudents: courseEnrollments.filter(e => e.status === 'active').length,
-                    completedStudents: courseEnrollments.filter(e => e.status === 'completed').length,
-                    averageProgress: courseEnrollments.length > 0
-                        ? courseEnrollments.reduce((sum, e) => sum + (e.progress?.percentageCompleted || 0), 0) / courseEnrollments.length
-                        : 0
-                };
-            });
-
-            // Get recent activities
-            const recentActivities = enrollments
-                .sort((a, b) => b.lastAccessed - a.lastAccessed)
-                .slice(0, 10)
-                .map(e => ({
-                    studentName: `${e.student.firstName} ${e.student.lastName}`,
-                    courseTitle: e.course.title,
-                    action: e.status === 'completed' ? 'completed' : 'enrolled in',
-                    date: e.lastAccessed || e.enrollmentDate
-                }));
-
-            const response = {
-                totalCourses: courses.length,
-                publishedCourses: courses.filter(c => c.status === 'published').length,
-                draftCourses: courses.filter(c => c.status === 'draft').length,
+            res.json({
                 totalStudents,
-                activeStudents,
+                totalCourses,
                 totalEnrollments,
-                completedEnrollments,
-                averageProgress,
-                courseMetrics: courseMetrics.sort((a, b) => b.totalStudents - a.totalStudents),
-                recentActivities,
-                topCourses: courseMetrics
-                    .sort((a, b) => b.totalStudents - a.totalStudents)
-                    .slice(0, 5)
-            };
-
-            console.log('Sending instructor dashboard response:', response);
-            return res.json(response);
+                coursePerformance,
+                recentActivities
+            });
         } else {
             console.log('Fetching student dashboard stats');
             // Get student's enrollments with course details

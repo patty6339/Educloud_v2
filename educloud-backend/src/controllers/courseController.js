@@ -38,10 +38,28 @@ const upload = multer({
 
 // Get all courses
 exports.getAllCourses = handleAsync(async (req, res) => {
+    console.log('Get All Courses - Request User:', req.user);
+    
     const courses = await Course.find()
         .populate('instructor', 'firstName lastName email')
         .select('-__v');
-    res.json({ courses });
+    
+    console.log('Fetched Courses:', {
+        count: courses.length,
+        courseIds: courses.map(course => course._id)
+    });
+
+    if (courses.length === 0) {
+        return res.status(404).json({ 
+            message: 'No courses found', 
+            courses: [] 
+        });
+    }
+
+    res.json({ 
+        message: 'Courses retrieved successfully',
+        courses: courses 
+    });
 });
 
 // Get course by ID
@@ -237,6 +255,43 @@ exports.updateCourseThumbnail = handleAsync(async (req, res) => {
                 });
             }
             throw error;
+        }
+    });
+});
+
+// Enroll in a course
+exports.enrollInCourse = handleAsync(async (req, res) => {
+    const courseId = req.params.courseId;
+    const userId = req.user._id;
+
+    console.log('Enrollment Request:', { courseId, userId });
+
+    // Find the course
+    const course = await Course.findById(courseId);
+    if (!course) {
+        return res.status(404).json({ message: 'Course not found' });
+    }
+
+    // Check if already enrolled
+    const isEnrolled = course.enrolledStudents.some(studentId => 
+        studentId.toString() === userId.toString()
+    );
+
+    if (isEnrolled) {
+        return res.status(400).json({ message: 'Already enrolled in this course' });
+    }
+
+    // Add student to enrolled students
+    course.enrolledStudents.push(userId);
+    course.enrollmentCount += 1;
+    await course.save();
+
+    res.status(200).json({ 
+        message: 'Successfully enrolled in the course',
+        course: {
+            _id: course._id,
+            title: course.title,
+            enrollmentCount: course.enrollmentCount
         }
     });
 });

@@ -9,6 +9,9 @@ const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 const webSocketManager = new WebSocketManager(server);
 
+const dashboardRoutes = require('./routes/dashboardRoutes');
+app.use('/api/dashboard', dashboardRoutes);
+
 // Add error handling for the server
 server.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {

@@ -57,10 +57,27 @@ const Register = () => {
         role: formData.role
       });
 
+      console.log('Signup Response:', response);
+      console.log('Response Data:', response.data);
+
       // Log in the user after successful registration
-      login(response.data.user, response.data.token);
-      navigate('/dashboard');
+      if (response.data && response.data.user && response.data.token) {
+        login(
+          {
+            ...response.data.user,
+            welcomeMessage: response.data.user.role === 'instructor' 
+              ? 'Welcome Instructor' 
+              : 'Welcome to EduCloud'
+          }, 
+          response.data.token
+        );
+        navigate('/dashboard');
+      } else {
+        setError('Invalid response from server');
+        console.error('Invalid signup response:', response);
+      }
     } catch (err) {
+      console.error('Signup Error:', err);
       setError(err.response?.data?.message || 'Failed to register');
     } finally {
       setLoading(false);

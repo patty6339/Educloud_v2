@@ -119,7 +119,24 @@ export const authAPI = {
 
 export const coursesAPI = {
   getAllCourses() {
-    return api.get('/api/courses');
+    return api.get('/api/courses').then(response => {
+      console.log('Raw courses API response:', response);
+      
+      // Validate response structure
+      if (!response || !response.data) {
+        throw new Error('Invalid response from server');
+      }
+      
+      return response;
+    }).catch(error => {
+      console.error('Courses API error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      throw error;
+    });
   },
   getCourseById(id) {
     return api.get(`/api/courses/${id}`);
@@ -184,15 +201,28 @@ export const coursesAPI = {
       }
     });
   },
-  enrollCourse: (courseId) => {
-    return api.post('/api/enrollments', { courseId });
+  deleteThumbnail(courseId) {
+    return api.delete(`/api/courses/${courseId}/thumbnail`);
+  },
+  enrollCourse: async (courseId) => {
+    try {
+      const response = await api.post(`/api/courses/${courseId}/enroll`);
+      console.log('Enrollment response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Enrollment error details:', {
+        message: error.response?.data?.message || error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      throw error;
+    }
   },
   getEnrolledCourses() {
     return api.get('/api/users/courses');
   },
-  getDashboardStats: async () => {
-    const response = await api.get('/api/dashboard/stats');
-    return response;
+  getDashboardStats() {
+    return api.get('/api/dashboard/stats');
   },
 };
 

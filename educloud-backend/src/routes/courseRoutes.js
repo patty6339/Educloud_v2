@@ -24,6 +24,12 @@ router.get('/:id', protect, courseController.getCourseById);
 router.put('/:id', protect, authorize(['instructor', 'admin']), courseController.updateCourse);
 router.delete('/:id', protect, authorize(['instructor', 'admin']), courseController.deleteCourse);
 
+// Enrollment route
+router.post('/:courseId/enroll', 
+  protect, 
+  courseController.enrollInCourse
+);
+
 // Lesson routes
 router.get('/:courseId/lessons', protect, lessonController.getLessons);
 router.post('/:courseId/lessons', protect, authorize(['instructor', 'admin']), lessonController.createLesson);

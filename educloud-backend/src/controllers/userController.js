@@ -214,51 +214,6 @@ exports.updateSettings = handleAsync(async (req, res) => {
     });
 });
 
-// Enroll in a course
-exports.enrollInCourse = handleAsync(async (req, res) => {
-    const courseId = req.params.courseId;
-    const userId = req.user._id;
-
-    // Check if course exists
-    const course = await Course.findById(courseId);
-    if (!course) {
-        throw new APIError('Course not found', 404);
-    }
-
-    // Check if already enrolled
-    const existingEnrollment = await Enrollment.findOne({ userId, courseId });
-    if (existingEnrollment) {
-        throw new APIError('Already enrolled in this course', 400);
-    }
-
-    // Create enrollment
-    const enrollment = new Enrollment({
-        userId,
-        courseId,
-        status: 'active',
-        progress: {
-            completedLessons: [],
-            lastAccessed: new Date(),
-            percentageCompleted: 0
-        }
-    });
-
-    await enrollment.save();
-
-    // Update course enrollment count
-    await Course.findByIdAndUpdate(courseId, { $inc: { enrollmentCount: 1 } });
-
-    res.status(201).json({
-        status: 'success',
-        message: 'Successfully enrolled in course',
-        data: {
-            courseId: enrollment.courseId,
-            status: enrollment.status,
-            enrollmentDate: enrollment.createdAt
-        }
-    });
-});
-
 // Admin: Get all users
 exports.getAllUsers = handleAsync(async (req, res) => {
     const users = await User.find().select('-password');
@@ -309,3 +264,4 @@ exports.deleteUser = handleAsync(async (req, res) => {
         message: 'User deleted successfully'
     });
 });
+// Keeping this comment as a placeholder
