@@ -2,9 +2,14 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/educloud', {
+        const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/educloud';
+        console.log('Attempting to connect to MongoDB...');
+        
+        const conn = await mongoose.connect(mongoURI, {
             useNewUrlParser: true,
-            useUnifiedTopology: true
+            useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+            retryWrites: true
         });
 
         console.log(`MongoDB Connected: ${conn.connection.host}`);
@@ -32,6 +37,7 @@ const connectDB = async () => {
 
     } catch (error) {
         console.error(`Error: ${error.message}`);
+        console.log('Please make sure MongoDB is running and accessible');
         process.exit(1);
     }
 };
