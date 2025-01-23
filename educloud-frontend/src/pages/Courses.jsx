@@ -77,30 +77,41 @@ const Courses = () => {
 
   const handleEnrollment = async (course) => {
     try {
+      setEnrollingCourse(course.id);
       setEnrollmentLoading(true);
-      setError('');
       
       // Enroll in the course
-      const enrollmentResponse = await coursesAPI.enrollCourse(course.id || course._id);
+      const response = await coursesAPI.enrollCourse(course.id);
+      console.log('Enrollment successful:', response);
       
-      // Fetch updated courses to ensure enrollment status is reflected
-      await fetchCourses(); 
+      // Refresh courses list
+      await fetchCourses();
       
-      // Trigger dashboard stats update through context or local storage
-      const dashboardStats = await coursesAPI.getDashboardStats();
+      // Create and dispatch the enrollment event
+      const enrollmentEvent = new CustomEvent('courseEnrolled', {
+        bubbles: true,
+        detail: {
+          courseId: course.id,
+          courseName: course.title,
+          enrollmentDate: new Date().toISOString(),
+          status: response.data?.status || 'active'
+        }
+      });
       
-      // Update local storage to trigger dashboard refresh
-      localStorage.setItem('dashboardStats', JSON.stringify(dashboardStats.data));
-      
-      // Close enrollment dialog
-      setEnrollingCourse(null);
+      // Dispatch the event
+      window.dispatchEvent(enrollmentEvent);
+      console.log('Dispatched enrollment event:', enrollmentEvent);
       
       // Show success message
-      setError('Successfully enrolled in the course!');
-    } catch (err) {
-      console.error('Enrollment error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to enroll in course');
+      setError({ type: 'success', message: 'Successfully enrolled in course!' });
+    } catch (error) {
+      console.error('Enrollment error:', error);
+      setError({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to enroll in course'
+      });
     } finally {
+      setEnrollingCourse(null);
       setEnrollmentLoading(false);
     }
   };
@@ -140,8 +151,8 @@ const Courses = () => {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 4 }}>
-          {error}
+        <Alert severity={error.type || 'error'} sx={{ mb: 4 }}>
+          {error.message}
         </Alert>
       )}
 

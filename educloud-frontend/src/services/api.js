@@ -7,6 +7,13 @@ export const getImageUrl = (path) => {
   return `${API_URL}${path}`;
 };
 
+// Helper function to get full thumbnail URL
+export const getThumbnailUrl = (thumbnailPath) => {
+  if (!thumbnailPath) return '/default-course.jpg';
+  if (thumbnailPath.startsWith('http')) return thumbnailPath;
+  return `${API_URL}${thumbnailPath}`;
+};
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -29,15 +36,18 @@ api.interceptors.response.use(
   (error) => {
     // Handle network errors
     if (!error.response) {
+      console.error('Network error:', error);
       return Promise.reject({ message: 'Network error. Please check your connection.' });
     }
 
     // Handle specific HTTP errors
     switch (error.response.status) {
       case 401:
+        console.error('Authentication error:', error.response.data);
         // Clear storage on unauthorized
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        delete api.defaults.headers.common['Authorization'];
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
@@ -64,7 +74,7 @@ export const authAPI = {
       const response = await api.post('/api/users/login', credentials);
       
       // Log the full response for debugging
-      console.log('Full login response:', response);
+      console.log('Full login response:', response.data);
       
       // Check if response has data
       if (!response.data) {
@@ -76,31 +86,24 @@ export const authAPI = {
         throw new Error('No authentication token received');
       }
 
-      // Store token and user data
-      localStorage.setItem('token', response.data.token);
-      if (response.data.user) {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+      // Check if user data exists - it's in response.data.data
+      if (!response.data.data) {
+        throw new Error('No user data received');
       }
 
-      return response;
+      // Store token in axios headers
+      api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+
+      // Return restructured response with user data in the expected format
+      return {
+        data: {
+          user: response.data.data,
+          token: response.data.token
+        }
+      };
     } catch (error) {
       console.error('Login error details:', error.response?.data || error.message);
-      
-      // Handle specific error cases
-      if (error.response) {
-        switch (error.response.status) {
-          case 401:
-            throw new Error('Invalid email or password');
-          case 404:
-            throw new Error('User not found');
-          case 500:
-            throw new Error('Server error. Please try again later');
-          default:
-            throw new Error(error.response.data?.message || 'Login failed');
-        }
-      }
-      
-      throw new Error('Network error. Please check your connection');
+      throw error;
     }
   },
   register: async (userData) => {
@@ -118,112 +121,44 @@ export const authAPI = {
 };
 
 export const coursesAPI = {
-  getAllCourses() {
-    return api.get('/api/courses').then(response => {
-      console.log('Raw courses API response:', response);
-      
-      // Validate response structure
-      if (!response || !response.data) {
-        throw new Error('Invalid response from server');
-      }
-      
-      return response;
-    }).catch(error => {
-      console.error('Courses API error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
-      throw error;
-    });
+  getAllCourses: () => api.get('/api/courses'),
+  getCourseById: (id) => api.get(`/api/courses/${id}`),
+  createCourse: async (courseData) => {
+    const response = await api.post('/api/courses', courseData);
+    return response;
   },
-  getCourseById(id) {
-    return api.get(`/api/courses/${id}`);
-  },
-  createCourse(courseData) {
-    console.log('API createCourse called with:', courseData);
-    
-    // If courseData is already FormData, use it directly
-    if (courseData instanceof FormData) {
-      console.log('FormData entries:');
-      for (let [key, value] of courseData.entries()) {
-        console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
-      }
-
-      return api.post('/api/courses', courseData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      }).catch(error => {
-        console.error('API Error Response:', error.response?.data);
-        console.error('API Error Status:', error.response?.status);
-        console.error('API Error Headers:', error.response?.headers);
-        throw error;
-      });
-    }
-
-    // Otherwise, create new FormData
-    const formData = new FormData();
-    
-    Object.keys(courseData).forEach(key => {
-      if (key === 'thumbnail') {
-        if (courseData[key]) {
-          formData.append('thumbnail', courseData[key]);
-        }
-      } else if (Array.isArray(courseData[key])) {
-        formData.append(key, JSON.stringify(courseData[key]));
-      } else if (courseData[key] !== null && courseData[key] !== undefined) {
-        formData.append(key, courseData[key]);
-      }
-    });
-    
-    console.log('Created FormData entries:');
-    for (let [key, value] of formData.entries()) {
-      console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
-    }
-
-    return api.post('/api/courses', formData, {
+  updateCourseThumbnail: (courseId, formData) => {
+    return api.post(`/api/courses/${courseId}/thumbnail`, formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    }).catch(error => {
-      console.error('API Error Response:', error.response?.data);
-      console.error('API Error Status:', error.response?.status);
-      console.error('API Error Headers:', error.response?.headers);
-      throw error;
+        'Content-Type': 'multipart/form-data',
+      },
     });
   },
-  updateCourseThumbnail(courseId, formData) {
-    return api.put(`/api/courses/${courseId}/thumbnail`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-  },
-  deleteThumbnail(courseId) {
-    return api.delete(`/api/courses/${courseId}/thumbnail`);
-  },
+  deleteThumbnail: (courseId) => api.delete(`/api/courses/${courseId}/thumbnail`),
   enrollCourse: async (courseId) => {
     try {
-      const response = await api.post(`/api/courses/${courseId}/enroll`);
-      console.log('Enrollment response:', response.data);
-      return response.data;
+      const response = await api.post(`/api/enrollments`, { courseId });
+      return response;
     } catch (error) {
-      console.error('Enrollment error details:', {
-        message: error.response?.data?.message || error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
+      console.error('Error enrolling in course:', error);
       throw error;
     }
   },
-  getEnrolledCourses() {
-    return api.get('/api/users/courses');
-  },
-  getDashboardStats() {
-    return api.get('/api/dashboard/stats');
-  },
+  getEnrolledCourses: () => api.get('/api/enrollments'),
+  getDashboardStats: async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      const response = await api.get('/api/dashboard/stats');
+      return response;
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      throw error;
+    }
+  }
 };
 
 export default api;

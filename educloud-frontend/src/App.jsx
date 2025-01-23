@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
 import CreateCourse from './pages/CreateCourse';
 import CourseView from './pages/CourseView';
+import CourseLearn from './pages/CourseLearn';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
 
@@ -50,6 +51,11 @@ function App() {
               <Route path="/courses/:id" element={
                 <ProtectedRoute>
                   <CourseView />
+                </ProtectedRoute>
+              } />
+              <Route path="/courses/:courseId/learn" element={
+                <ProtectedRoute>
+                  <CourseLearn />
                 </ProtectedRoute>
               } />
               {/* Catch all route */}

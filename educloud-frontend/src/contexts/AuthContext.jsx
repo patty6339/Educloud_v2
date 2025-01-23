@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -8,37 +9,93 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user data exists in localStorage
-    const userData = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    
-    if (userData && token) {
+    const validateAuth = async () => {
       try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        localStorage.removeItem('user'); // Clear invalid data
-        localStorage.removeItem('token');
+        const userData = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+        
+        if (!userData || !token) {
+          console.log('No auth data found in localStorage');
+          setUser(null);
+          setIsAuthenticated(false);
+          return;
+        }
+
+        try {
+          const parsedUser = JSON.parse(userData);
+          
+          // Set auth headers for future requests
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          // Validate token with backend
+          const response = await api.get('/api/users/validate');
+          if (response.data?.valid) {
+            console.log('Token validated successfully');
+            setUser(parsedUser);
+            setIsAuthenticated(true);
+          } else {
+            console.log('Token validation failed');
+            throw new Error('Invalid token');
+          }
+        } catch (error) {
+          console.error('Auth validation error:', error);
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          delete api.defaults.headers.common['Authorization'];
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } finally {
+        setLoading(false);
       }
-    }
-    
-    setLoading(false);
+    };
+
+    validateAuth();
   }, []);
 
-  const login = (userData, token) => {
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', token);
-    setUser(userData);
-    setIsAuthenticated(true);
+  const login = async (userData, token) => {
+    try {
+      // First set the token in localStorage and axios headers
+      localStorage.setItem('token', token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Then set the user data
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Finally update the state
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      console.log('Login successful:', { 
+        user: userData,
+        token: token ? `${token.substring(0, 10)}...` : 'No token',
+        isAuthenticated: true
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      // Clean up on error
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      delete api.defaults.headers.common['Authorization'];
+      setUser(null);
+      setIsAuthenticated(false);
+      throw error;
+    }
   };
 
   const logout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    setUser(null);
-    setIsAuthenticated(false);
+    try {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      delete api.defaults.headers.common['Authorization'];
+      setUser(null);
+      setIsAuthenticated(false);
+      console.log('Logout successful');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const value = {
@@ -51,7 +108,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

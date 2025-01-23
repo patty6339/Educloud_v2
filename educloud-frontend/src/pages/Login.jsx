@@ -37,10 +37,21 @@ const Login = () => {
 
     try {
       const response = await authAPI.login(formData);
-      login(response.data.user, response.data.token);
-      navigate('/dashboard');
+      console.log('Login response:', response.data);
+      
+      if (!response.data?.token || !response.data?.user) {
+        throw new Error('Invalid response from server');
+      }
+      
+      const loginSuccess = await login(response.data.user, response.data.token);
+      if (loginSuccess) {
+        navigate('/dashboard');
+      } else {
+        throw new Error('Failed to set authentication state');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to login');
+      console.error('Login error:', err);
+      setError(err.message || 'Failed to login. Please try again.');
     } finally {
       setLoading(false);
     }

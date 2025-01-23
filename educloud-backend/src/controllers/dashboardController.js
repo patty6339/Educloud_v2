@@ -128,58 +128,93 @@ exports.getStats = async (req, res) => {
             });
         } else {
             console.log('Fetching student dashboard stats');
-            // Get student's enrollments with course details
-            const enrollments = await Enrollment.aggregate([
-                {
-                    $match: {
-                        userId: new mongoose.Types.ObjectId(userId),
-                        status: { $in: ['active', 'completed'] }
+            
+            // Get student's enrollments with optimized query
+            const [enrollments, counts] = await Promise.all([
+                // Get recent enrollments with essential data
+                Enrollment.aggregate([
+                    {
+                        $match: {
+                            userId: new mongoose.Types.ObjectId(userId),
+                            status: { $in: ['active', 'completed'] }
+                        }
+                    },
+                    { $sort: { createdAt: -1 } },
+                    { $limit: 10 }, // Limit to 10 most recent enrollments
+                    {
+                        $lookup: {
+                            from: 'courses',
+                            let: { courseId: '$courseId' },
+                            pipeline: [
+                                { $match: { $expr: { $eq: ['$_id', '$$courseId'] } } },
+                                { $project: { 
+                                    title: 1, 
+                                    description: 1, 
+                                    thumbnail: 1 
+                                }}
+                            ],
+                            as: 'course'
+                        }
+                    },
+                    { $unwind: '$course' },
+                    {
+                        $project: {
+                            courseId: '$course._id',
+                            title: '$course.title',
+                            description: '$course.description',
+                            thumbnail: '$course.thumbnail',
+                            status: 1,
+                            progress: 1,
+                            enrollmentDate: '$createdAt'
+                        }
                     }
-                },
-                {
-                    $lookup: {
-                        from: 'courses',
-                        localField: 'courseId',
-                        foreignField: '_id',
-                        as: 'course'
+                ]),
+                
+                // Get enrollment counts in a single aggregation
+                Enrollment.aggregate([
+                    {
+                        $match: {
+                            userId: new mongoose.Types.ObjectId(userId),
+                            status: { $in: ['active', 'completed'] }
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            totalEnrolled: { $sum: 1 },
+                            completedCourses: {
+                                $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+                            },
+                            activeCourses: {
+                                $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+                            }
+                        }
                     }
-                },
-                {
-                    $unwind: '$course'
-                },
-                {
-                    $sort: { enrollmentDate: -1 }
-                }
+                ])
             ]);
 
-            console.log('Found enrollments:', {
-                count: enrollments.length,
-                enrollments: enrollments.map(e => ({
-                    courseId: e.courseId,
-                    status: e.status,
-                    title: e.course.title
-                }))
-            });
-
-            const activeCount = enrollments.filter(e => e.status === 'active').length;
-            const completedCount = enrollments.filter(e => e.status === 'completed').length;
+            const countData = counts[0] || { totalEnrolled: 0, completedCourses: 0, activeCourses: 0 };
 
             const response = {
-                totalEnrolled: enrollments.length,
-                completedCourses: completedCount,
-                activeCourses: activeCount,
-                recentCourses: enrollments.slice(0, 5).map(e => ({
-                    id: e.course._id,
-                    title: e.course.title,
-                    description: e.course.description,
-                    thumbnail: e.course.thumbnail,
+                ...countData,
+                recentCourses: enrollments.map(e => ({
+                    id: e.courseId,
+                    title: e.title,
+                    description: e.description,
+                    thumbnail: e.thumbnail,
                     progress: e.progress?.percentageCompleted || 0,
                     status: e.status,
                     enrollmentDate: e.enrollmentDate
                 }))
             };
 
-            console.log('Sending student dashboard response:', response);
+            console.log('Sending optimized student dashboard response:', {
+                totalEnrolled: response.totalEnrolled,
+                completedCourses: response.completedCourses,
+                activeCourses: response.activeCourses,
+                recentCoursesCount: response.recentCourses.length
+            });
+            
             return res.json(response);
         }
     } catch (error) {
